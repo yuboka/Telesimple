@@ -1,5 +1,5 @@
 <?php
-require_once "config.php";
+require_once "Config.php";
 
 // Read Telegram updates (webhook)
 $update = json_decode(file_get_contents("php://input"), true);
