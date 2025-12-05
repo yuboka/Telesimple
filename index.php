@@ -1,8 +1,15 @@
 <?php
 require_once "config.php";
 
+// Log all raw updates
+logWebhook("RAW UPDATE: " . file_get_contents("php://input"));
+
 $update = json_decode(file_get_contents("php://input"), true);
-if (!$update) exit();
+
+if (!$update) {
+    logWebhook("No update received");
+    exit();
+}
 
 // -------------------------------------------------------
 // MESSAGE HANDLER
@@ -11,6 +18,8 @@ if (isset($update["message"])) {
 
     $chat_id = $update["message"]["chat"]["id"];
     $text = strtolower(trim($update["message"]["text"]));
+
+    logWebhook("Received message: $text from $chat_id");
 
     switch ($text) {
 
@@ -51,6 +60,8 @@ if (isset($update["message"])) {
 // -------------------------------------------------------
 function sabusCurl($endpoint, $method = "GET", $payload = [])
 {
+    logWebhook("Calling SABUS endpoint: $endpoint");
+
     $url = SABUS_BASE . $endpoint;
 
     $curl = curl_init();
@@ -58,6 +69,63 @@ function sabusCurl($endpoint, $method = "GET", $payload = [])
     $headers = [
         "Authorization: Bearer " . SABUS_KEY,
         "Content-Type: application/json"
+    ];
+
+    $options = [
+        CURLOPT_URL => $url,
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_HTTPHEADER => $headers,
+    ];
+
+    if ($method === "POST") {
+        $options[CURLOPT_POST] = true;
+        $options[CURLOPT_POSTFIELDS] = json_encode($payload);
+    }
+
+    curl_setopt_array($curl, $options);
+
+    $response = curl_exec($curl);
+    $err = curl_error($curl);
+
+    if ($err) {
+        logWebhook("SABUS CURL ERROR: $err");
+        curl_close($curl);
+        return "Curl Error: " . $err;
+    }
+
+    logWebhook("SABUS Response: $response");
+
+    curl_close($curl);
+    return $response;
+}
+
+
+
+// -------------------------------------------------------
+// SABUS FUNCTIONS
+// -------------------------------------------------------
+function getBalance()
+{
+    logWebhook("Fetching balance...");
+    $res = sabusCurl("wallet/balance");
+
+    $json = json_decode($res, true);
+
+    if (!is_array($json) || !isset($json["balance"])) {
+        logWebhook("Balance error response: " . $res);
+        return "❌ Could not retrieve balance";
+    }
+
+    return "💰 *Wallet Balance:* ₦" . $json["balance"];
+}
+
+
+function getAirtimeApi()
+{
+    logWebhook("Getting airtime API...");
+    $res = sabusCurl("airtime/pricing");
+
+    return "*SABUS Airtime Pricing:*        "Content-Type: application/json"
     ];
 
     $options = [
