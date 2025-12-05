@@ -5,14 +5,16 @@ $update = json_decode(file_get_contents("php://input"), true);
 if (!$update) exit();
 
 if (isset($update["message"])) {
+
     $chat_id = $update["message"]["chat"]["id"];
     $text = strtolower(trim($update["message"]["text"]));
 
     switch ($text) {
+
         case "/start":
         case "/help":
             $reply = "Welcome! Available commands:
-            
+
 /airtime  → Get Airtime API list
 /data     → Get Data plans list
 /balance  → Check SABUS wallet balance
@@ -33,8 +35,104 @@ if (isset($update["message"])) {
 
         default:
             $reply = "Unknown command. Type /help";
+            break;
     }
 
+    sendMessage($chat_id, $reply);
+}
+
+
+
+/* ----------------------------------------------------
+   SABUS API WRAPPER (CURL)
+---------------------------------------------------- */
+function sabusCurl($endpoint, $method = "GET", $payload = [])
+{
+    $url = SABUS_BASE . $endpoint;
+
+    $curl = curl_init();
+
+    $headers = [
+        "Authorization: Bearer " . SABUS_KEY,
+        "Content-Type: application/json"
+    ];
+
+    $options = [
+        CURLOPT_URL => $url,
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_HTTPHEADER => $headers,
+    ];
+
+    if ($method == "POST") {
+        $options[CURLOPT_POST] = true;
+        $options[CURLOPT_POSTFIELDS] = json_encode($payload);
+    }
+
+    curl_setopt_array($curl, $options);
+
+    $response = curl_exec($curl);
+    $err = curl_error($curl);
+
+    curl_close($curl);
+
+    if ($err) {
+        return "Curl Error: " . $err;
+    }
+
+    return $response;
+}
+
+
+
+/* ----------------------------------------------------
+   SABUS FUNCTIONS
+---------------------------------------------------- */
+
+function getBalance()
+{
+    $res = sabusCurl("wallet/balance");
+    $json = json_decode($res, true);
+
+    if (!is_array($json) || !isset($json["balance"])) {
+        return "❌ Error fetching balance";
+    }
+
+    return "💰 *Wallet Balance:* ₦" . $json["balance"];
+}
+
+
+function getAirtimeApi()
+{
+    $res = sabusCurl("airtime/pricing");
+
+    return "*SABUS Airtime Pricing:*\n```\n$res\n```";
+}
+
+
+function getDataPlans()
+{
+    $res = sabusCurl("data/plans");
+
+    return "*SABUS Data Plans:*\n```\n$res\n```";
+}
+
+
+
+/* ----------------------------------------------------
+   SEND TELEGRAM MESSAGE
+---------------------------------------------------- */
+
+function sendMessage($chat_id, $text)
+{
+    $url = TELEGRAM_API . "sendMessage";
+    $data = [
+        "chat_id" => $chat_id,
+        "text" => $text,
+        "parse_mode" => "Markdown"
+    ];
+
+    file_get_contents($url . "?" . http_build_query($data));
+}
     sendMessage($chat_id, $reply);
 }
 
