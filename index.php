@@ -4,6 +4,9 @@ require_once "config.php";
 $update = json_decode(file_get_contents("php://input"), true);
 if (!$update) exit();
 
+// -------------------------------------------------------
+// MESSAGE HANDLER
+// -------------------------------------------------------
 if (isset($update["message"])) {
 
     $chat_id = $update["message"]["chat"]["id"];
@@ -35,6 +38,76 @@ if (isset($update["message"])) {
 
         default:
             $reply = "Unknown command. Type /help";
+            break;
+    }
+
+    sendMessage($chat_id, $reply);
+}
+
+
+
+// -------------------------------------------------------
+// SABUS API WRAPPER (CURL)
+// -------------------------------------------------------
+function sabusCurl($endpoint, $method = "GET", $payload = [])
+{
+    $url = SABUS_BASE . $endpoint;
+
+    $curl = curl_init();
+
+    $headers = [
+        "Authorization: Bearer " . SABUS_KEY,
+        "Content-Type: application/json"
+    ];
+
+    $options = [
+        CURLOPT_URL => $url,
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_HTTPHEADER => $headers,
+    ];
+
+    if ($method === "POST") {
+        $options[CURLOPT_POST] = true;
+        $options[CURLOPT_POSTFIELDS] = json_encode($payload);
+    }
+
+    curl_setopt_array($curl, $options);
+
+    $response = curl_exec($curl);
+    $err = curl_error($curl);
+
+    curl_close($curl);
+
+    if ($err) {
+        return "Curl Error: " . $err;
+    }
+
+    return $response;
+}
+
+
+
+// -------------------------------------------------------
+// SABUS FUNCTIONS
+// -------------------------------------------------------
+function getBalance()
+{
+    $res = sabusCurl("wallet/balance");
+    $json = json_decode($res, true);
+
+    if (!is_array($json) || !isset($json["balance"])) {
+        return "❌ Could not retrieve balance";
+    }
+
+    return "💰 *Wallet Balance:* ₦" . $json["balance"];
+}
+
+
+function getAirtimeApi()
+{
+    $res = sabusCurl("airtime/pricing");
+
+    return "*SABUS Airtime Pricing:*            $reply = "Unknown command. Type /help";
             break;
     }
 
