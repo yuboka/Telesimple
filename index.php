@@ -121,7 +121,8 @@ function sendMessage($chat_id, $text)
     ];
 
     file_get_contents($url . "?" . http_build_query($data));
-}            break;
+}          
+break;
 
         case "/balance":
             $reply = "SABUS Wallet Balance:
